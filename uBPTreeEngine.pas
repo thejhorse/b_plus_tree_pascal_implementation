@@ -2,9 +2,11 @@ unit uBPTreeEngine;
 
 interface
 
-uses Winapi.Windows, System.SysUtils, System.Generics.Collections;
+uses System.SysUtils, System.Generics.Collections;
 
 type
+  cPNodo = ^cNodo;
+
   cNodo = class abstract
   private
     iListaLlaves: TList<Integer>;
@@ -19,7 +21,18 @@ type
     { Private declarations }
   public
     sListaValores: TList<String>;
-    constructor fnCreate();
+    constructor fnCreate(pNodoRaiz: cPNodo);
+    function fnGetValorPorLlave(iLlave: Integer): String; override;
+    procedure fnEliminarValorPorLlave(iLlave: Integer); override;
+    procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
+  end;
+
+  cNodoRama = class(cNodoHoja)
+  private
+    { Private declarations }
+  public
+    sListaValores: TList<String>;
+    constructor fnCreate(pNodoRaiz: cPNodo);
     function fnGetValorPorLlave(iLlave: Integer): String; override;
     procedure fnEliminarValorPorLlave(iLlave: Integer); override;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
@@ -29,7 +42,7 @@ type
   private
     { Private declarations }
   public
-    nRaiz: cNodo;
+    nRaiz: cNodoRama;
     constructor fnCreate(iOrdenArbol: Integer);
     procedure fnInsertar(iLlave: Integer; sValor: String);
     procedure fnEliminar(iLlave: Integer);
@@ -102,6 +115,30 @@ begin
     iListaLlaves.Insert(iIndiceBuscado, iLlave);
     sListaValores.Insert(iIndiceBuscado, sValor);
   end;
+
+end;
+
+{ cNodoRama }
+
+constructor cNodoRama.fnCreate(pNodoRaiz: cPNodo);
+begin
+
+end;
+
+procedure cNodoRama.fnEliminarValorPorLlave(iLlave: Integer);
+begin
+  inherited;
+
+end;
+
+function cNodoRama.fnGetValorPorLlave(iLlave: Integer): String;
+begin
+
+end;
+
+procedure cNodoRama.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
+begin
+  inherited;
 
 end;
 
