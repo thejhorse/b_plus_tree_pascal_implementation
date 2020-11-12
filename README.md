@@ -4,7 +4,7 @@
 
 ![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)
 
-Project of implementation of a tree B+, for the postgraduate course of the National University San Agustin de Arequipa.
+Project of implementation of a B+ Tree, for the postgraduate course of the National University San Agustin de Arequipa.
 Presented by:
 
   - Angel Aguilar Armendariz
