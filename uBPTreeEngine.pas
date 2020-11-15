@@ -9,11 +9,18 @@ type
 
   cNodo = class abstract
   private
-    iListaLlaves: TList<Integer>;
+    { Private declarations }
   public
+    iListaLlaves: TList<Integer>;
+    function fnGetCantidadLlaves(): Integer;
     function fnGetValorPorLlave(iLlave: Integer): String; Virtual; Abstract;
     procedure fnEliminarValorPorLlave(iLlave: Integer); Virtual; Abstract;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); Virtual; Abstract;
+    function fnObtenerPrimeraLlave(): Integer; Virtual; Abstract; // Obtener la llave de la primera hoja mas profunda
+    procedure fnUnir(nNodoHermano: cNodo); Virtual; Abstract;
+    function fnDividir(): cNodo; Virtual; Abstract;
+    function fnEstaDesbordado(): Boolean; Virtual; Abstract;
+    function fnImprimir(sCumulado: string): string; Virtual; Abstract;
   end;
 
   cNodoHoja = class(cNodo)
@@ -21,10 +28,14 @@ type
     { Private declarations }
   public
     sListaValores: TList<String>;
-    constructor fnCreate(pNodoRaiz: cPNodo);
+    nNodoHojaSiguiente: cNodoHoja;
+    constructor fnCreate();
     function fnGetValorPorLlave(iLlave: Integer): String; override;
     procedure fnEliminarValorPorLlave(iLlave: Integer); override;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
+    function fnObtenerPrimeraLlave(): Integer; override;
+    function fnDividir(): cNodo; override;
+    function fnEstaDesbordado(): Boolean; override;
   end;
 
   cNodoRama = class(cNodoHoja)
@@ -32,10 +43,12 @@ type
     { Private declarations }
   public
     sListaValores: TList<String>;
+    nNodoHijos: TList<cNodo>;
     constructor fnCreate(pNodoRaiz: cPNodo);
     function fnGetValorPorLlave(iLlave: Integer): String; override;
     procedure fnEliminarValorPorLlave(iLlave: Integer); override;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
+    function fnObtenerHijoPorLlave(iLlave: Integer): cNodo;
   end;
 
   cArbolBPlus = class
@@ -91,20 +104,59 @@ begin
   sListaValores := TList<String>.Create();
 end;
 
+function cNodoHoja.fnDividir: cNodo;
+var
+  iDesde: Integer;
+  iHasta: Integer;
+  nNodoHermano: cNodoHoja;
+  i: Integer;
+begin
+  nNodoHermano := cNodoHoja.fnCreate();
+
+  iDesde := (fnGetCantidadLlaves() + 1) div 2;
+  iHasta := fnGetCantidadLlaves();
+
+  for i := iDesde to iHasta - 1 do
+  begin
+    nNodoHermano.iListaLlaves.Add(iListaLlaves[i]);
+    nNodoHermano.sListaValores.Add(sListaValores[i]);
+  end;
+
+  iListaLlaves.DeleteRange(iDesde, iHasta - iDesde);
+  sListaValores.DeleteRange(iDesde, iHasta - iDesde);
+
+  nNodoHermano.nNodoHojaSiguiente := nNodoHojaSiguiente;
+  nNodoHojaSiguiente := nNodoHermano;
+
+  Result := nNodoHermano;
+end;
+
 procedure cNodoHoja.fnEliminarValorPorLlave(iLlave: Integer);
 begin
 
 end;
 
-function cNodoHoja.fnGetValorPorLlave(iLlave: Integer): String;
+function cNodoHoja.fnEstaDesbordado: Boolean;
 begin
+  Result := sListaValores.Count > iOrden - 1;
+end;
 
+function cNodoHoja.fnGetValorPorLlave(iLlave: Integer): String;
+var
+  iIndiceBuscado: Integer;
+begin
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+    Result := sListaValores[iIndiceBuscado]
+  else
+    Result := '';
 end;
 
 procedure cNodoHoja.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
 var
   iIndiceBuscado: Integer;
   bEncontrado: Boolean;
+  nNodoHermano: cNodo;
+  niNuevoRaiz: cNodoRama;
 begin
   bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
 
@@ -116,13 +168,29 @@ begin
     sListaValores.Insert(iIndiceBuscado, sValor);
   end;
 
+  if nRaiz.fnEstaDesbordado() then
+  begin
+    nNodoHermano := fnDividir();
+    niNuevoRaiz :=  cNodoIndice.fnCreate();
+    niNuevoRaiz.iListaLlaves.add(nNodoHermano.fnObtenerPrimeraLlave());
+
+    niNuevoRaiz.nNodoHijos.add(Self);
+    niNuevoRaiz.nNodoHijos.add(nNodoHermano);
+    nRaiz := niNuevoRaiz;
+  end;
+end;
+
+function cNodoHoja.fnObtenerPrimeraLlave: Integer;
+begin
+  Result := iListaLlaves[0];
 end;
 
 { cNodoRama }
 
 constructor cNodoRama.fnCreate(pNodoRaiz: cPNodo);
 begin
-
+  iListaLlaves := TList<Integer>.Create();
+  nNodoHijos := TList<cNodo>.Create();
 end;
 
 procedure cNodoRama.fnEliminarValorPorLlave(iLlave: Integer);
@@ -133,13 +201,41 @@ end;
 
 function cNodoRama.fnGetValorPorLlave(iLlave: Integer): String;
 begin
-
+  Result := fnObtenerHijoPorLlave(iLlave).fnGetValorPorLlave(iLlave);
 end;
 
 procedure cNodoRama.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
+var
+  iIndiceBuscado: Integer;
+  bEncontrado : Boolean;
 begin
   inherited;
 
+  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
+
+  if bEncontrado then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+end;
+
+function cNodoRama.fnObtenerHijoPorLlave(iLlave: Integer): cNodo;
+var
+  bEncontrado: Boolean;
+  iIndiceBuscado: Integer;
+begin
+  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
+
+  if bEncontrado then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+  Result := nNodoHijos[iIndiceBuscado];
+end;
+
+{ cNodo }
+
+function cNodo.fnGetCantidadLlaves(): Integer;
+begin
+  Result := iListaLlaves.Count;
 end;
 
 end.
