@@ -33,6 +33,7 @@ type
     procedure fnEliminarValorPorLlave(iLlave: Integer); override;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
     function fnObtenerPrimeraLlave(): Integer; override;
+    procedure fnUnir(nNodoHermano: cNodo); override;
     function fnDividir(): cNodo; override;
     function fnEstaDesbordado(): Boolean; override;
     function fnObtenerHijoPorLlave(iLlave: Integer): cNodo;
@@ -87,9 +88,39 @@ begin
   nNodoHijos := TList<cNodo>.Create();
 end;
 
-function cNodoIndice.fnDividir: cNodo;
+procedure cNodoIndice.fnUnir(nNodoHermano: cNodo);
+var
+  niNodo: cNodoIndice;
 begin
+  niNodo := cNodoIndice(nNodoHermano);
+  iListaLlaves.add(niNodo.fnObtenerPrimeraLlave());
+  iListaLlaves.AddRange(niNodo.iListaLlaves);
+  nNodoHijos.AddRange(niNodo.nNodoHijos);
+end;
 
+function cNodoIndice.fnDividir: cNodo;
+var
+  iDesde: Integer;
+  iHasta: Integer;
+  nNodoHermano: cNodoIndice;
+  i: Integer;
+begin
+  iDesde := (fnGetCantidadLlaves() div 2) + 1;
+  iHasta := fnGetCantidadLlaves();
+
+  nNodoHermano := cNodoIndice.fnCreate();
+
+  for i := iDesde to iHasta - 1 do
+  begin
+    nNodoHermano.iListaLlaves.Add(iListaLlaves[i]);
+    nNodoHermano.nNodoHijos.Add(nNodoHijos[i]);
+  end;
+  nNodoHermano.nNodoHijos.Add(nNodoHijos[iHasta]);
+
+  iListaLlaves.DeleteRange(iDesde - 1, iHasta - iDesde + 1);
+  nNodoHijos.DeleteRange(iDesde, iHasta - iDesde + 1);
+
+  Result := nNodoHermano;
 end;
 
 procedure cNodoIndice.fnEliminarHijoPorLlave(iLlave: Integer);
