@@ -5,8 +5,6 @@ interface
 uses System.SysUtils, System.Generics.Collections;
 
 type
-  cPNodo = ^cNodo;
-
   cNodo = class abstract
   private
     { Private declarations }
@@ -39,6 +37,8 @@ type
     function fnObtenerHijoPorLlave(iLlave: Integer): cNodo;
     procedure fnEliminarHijoPorLlave(iLlave: Integer);
     procedure fnInsertarHijoEnLLave(iLlave: Integer; child: cNodo);
+    function fnObtenerNodoIzquierda(iLlave: Integer): cNodo;
+    function fnObtenerNodoDerecha(iLlave: Integer): cNodo;
   end;
 
   cNodoHoja = class(cNodo)
@@ -124,8 +124,76 @@ begin
 end;
 
 procedure cNodoIndice.fnEliminarHijoPorLlave(iLlave: Integer);
+var
+  nHijo: cNodo;
+  childLeftSibling: cNodo;
+  childRightSibling: cNodo;
+  nIzquierda: cNodo;
+  nDerecha: cNodo;
+  nNodoHermano: cNodo;
 begin
+  nHijo := fnObtenerHijoPorLlave(iLlave);
+  nHijo.fnEliminarValorPorLlave(iLlave);
 
+  if nNodoHijos.Count < (iOrden + 1) / 2 then
+  begin
+    childLeftSibling := fnObtenerNodoIzquierda(iLlave);
+    childRightSibling := fnObtenerNodoDerecha(iLlave);
+
+    if Assigned(childLeftSibling) then
+      nIzquierda := childLeftSibling
+    else
+      nIzquierda := nHijo;
+
+    if Assigned(childLeftSibling) then
+      nDerecha := nHijo
+    else
+      nDerecha := childRightSibling;
+
+    nIzquierda.fnUnir(nDerecha);
+    fnEliminarHijoPorLlave(nDerecha.fnObtenerPrimeraLlave());
+
+    if nIzquierda.fnEstaDesbordado() then
+    begin
+      nNodoHermano := nIzquierda.fnDividir();
+      fnInsertarHijoEnLLave(nNodoHermano.fnObtenerPrimeraLlave(), nNodoHermano);
+    end;
+
+    if nRaiz.fnGetCantidadLlaves() = 0 then
+      nRaiz := nIzquierda;
+  end;
+end;
+
+function cNodoIndice.fnObtenerNodoIzquierda(iLlave: Integer): cNodo;
+var
+  iIndiceBuscado: Integer;
+begin
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+  if iIndiceBuscado > 0 then
+  begin
+    Result := nNodoHijos[iIndiceBuscado - 1];
+    Exit;
+  end;
+
+  Result := nil;
+end;
+
+function cNodoIndice.fnObtenerNodoDerecha(iLlave: Integer): cNodo;
+var
+  iIndiceBuscado: Integer;
+begin
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+  if iIndiceBuscado < fnGetCantidadLlaves() then
+  begin
+    Result := nNodoHijos[iIndiceBuscado + 1];
+    Exit;
+  end;
+
+  Result := nil;
 end;
 
 procedure cNodoIndice.fnEliminarValorPorLlave(iLlave: Integer);
