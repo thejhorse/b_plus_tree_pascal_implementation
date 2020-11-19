@@ -125,42 +125,13 @@ end;
 
 procedure cNodoIndice.fnEliminarHijoPorLlave(iLlave: Integer);
 var
-  nHijo: cNodo;
-  childLeftSibling: cNodo;
-  childRightSibling: cNodo;
-  nIzquierda: cNodo;
-  nDerecha: cNodo;
-  nNodoHermano: cNodo;
+  iIndiceBuscado: Integer;
 begin
-  nHijo := fnObtenerHijoPorLlave(iLlave);
-  nHijo.fnEliminarValorPorLlave(iLlave);
-
-  if nNodoHijos.Count < (iOrden + 1) / 2 then
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
   begin
-    childLeftSibling := fnObtenerNodoIzquierda(iLlave);
-    childRightSibling := fnObtenerNodoDerecha(iLlave);
-
-    if Assigned(childLeftSibling) then
-      nIzquierda := childLeftSibling
-    else
-      nIzquierda := nHijo;
-
-    if Assigned(childLeftSibling) then
-      nDerecha := nHijo
-    else
-      nDerecha := childRightSibling;
-
-    nIzquierda.fnUnir(nDerecha);
-    fnEliminarHijoPorLlave(nDerecha.fnObtenerPrimeraLlave());
-
-    if nIzquierda.fnEstaDesbordado() then
-    begin
-      nNodoHermano := nIzquierda.fnDividir();
-      fnInsertarHijoEnLLave(nNodoHermano.fnObtenerPrimeraLlave(), nNodoHermano);
-    end;
-
-    if nRaiz.fnGetCantidadLlaves() = 0 then
-      nRaiz := nIzquierda;
+    iListaLlaves.Delete(iIndiceBuscado);
+    //nNodoHijos.Delete(iIndiceBuscado + 1);
+    nNodoHijos[iIndiceBuscado + 1].Free();
   end;
 end;
 
@@ -197,8 +168,44 @@ begin
 end;
 
 procedure cNodoIndice.fnEliminarValorPorLlave(iLlave: Integer);
+var
+  nHijo: cNodo;
+  nNodoHermanoIzquierda: cNodo;
+  nNodoHermanoDerecha: cNodo;
+  nIzquierda: cNodo;
+  nDerecha: cNodo;
+  nNodoHermano: cNodo;
 begin
+  nHijo := fnObtenerHijoPorLlave(iLlave);
+  nHijo.fnEliminarValorPorLlave(iLlave);
 
+  if nNodoHijos.Count < (iOrden + 1) / 2 then
+  begin
+    nNodoHermanoIzquierda := fnObtenerNodoIzquierda(iLlave);
+    nNodoHermanoDerecha := fnObtenerNodoDerecha(iLlave);
+
+    if Assigned(nNodoHermanoIzquierda) then
+      nIzquierda := nNodoHermanoIzquierda
+    else
+      nIzquierda := nHijo;
+
+    if Assigned(nNodoHermanoIzquierda) then
+      nDerecha := nHijo
+    else
+      nDerecha := nNodoHermanoDerecha;
+
+    nIzquierda.fnUnir(nDerecha);
+    fnEliminarHijoPorLlave(nDerecha.fnObtenerPrimeraLlave());
+
+    if nIzquierda.fnEstaDesbordado() then
+    begin
+      nNodoHermano := nIzquierda.fnDividir();
+      fnInsertarHijoEnLLave(nNodoHermano.fnObtenerPrimeraLlave(), nNodoHermano);
+    end;
+
+    if nRaiz.fnGetCantidadLlaves() = 0 then
+      nRaiz := nIzquierda;
+  end;
 end;
 
 function cNodoIndice.fnEstaDesbordado: Boolean;
@@ -212,8 +219,24 @@ begin
 end;
 
 procedure cNodoIndice.fnInsertarHijoEnLLave(iLlave: Integer; child: cNodo);
+var
+  iIndiceBuscado: Integer;
+  bEncontrado : Boolean;
 begin
+  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
 
+  if bEncontrado then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+  if bEncontrado then
+  begin
+    nNodoHijos[iIndiceBuscado] := child;
+  end
+  else
+  begin
+    iListaLlaves.Insert(iIndiceBuscado, iLlave);
+    nNodoHijos.Insert(iIndiceBuscado + 1, child);
+  end;
 end;
 
 procedure cNodoIndice.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
@@ -262,13 +285,13 @@ end;
 
 { cNodoHoja }
 
-constructor cNodoHoja.fnCreate;
+constructor cNodoHoja.fnCreate();
 begin
   iListaLlaves := TList<Integer>.Create();
   sListaValores := TList<String>.Create();
 end;
 
-function cNodoHoja.fnDividir: cNodo;
+function cNodoHoja.fnDividir(): cNodo;
 var
   iDesde: Integer;
   iHasta: Integer;
