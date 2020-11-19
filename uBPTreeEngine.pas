@@ -1,11 +1,15 @@
 unit uBPTreeEngine;
 
+{
+  20/10/2020 - Initial write by Angel Aguilar Armendariz
+}
+
 interface
 
-uses System.SysUtils, System.Generics.Collections;
+uses System.Generics.Collections, System.SysUtils, System.Classes;
 
 type
-  cNodo = class abstract
+  TNodo = class abstract
   private
     { Private declarations }
   public
@@ -15,48 +19,60 @@ type
     procedure fnEliminarValorPorLlave(iLlave: Integer); Virtual; Abstract;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); Virtual; Abstract;
     function fnObtenerPrimeraLlave(): Integer; Virtual; Abstract; // Obtener la llave de la primera hoja mas profunda
-    procedure fnUnir(nNodoHermano: cNodo); Virtual; Abstract;
-    function fnDividir(): cNodo; Virtual; Abstract;
+    function fnObtenerPrimerValor(): String; Virtual; Abstract; // Obtener el valor de la primera hoja mas profunda
+    function fnObtenerUltimoValor(): String; Virtual; Abstract; // Obtener el ultimo valor de la hoja mas profunda
+    function fnObtenerPrimerNodo(): TNodo; Virtual; Abstract;
+    procedure fnUnir(nNodoHermano: TNodo); Virtual; Abstract;
+    function fnDividir(): TNodo; Virtual; Abstract;
     function fnEstaDesbordado(): Boolean; Virtual; Abstract;
-    function fnImprimir(sCumulado: string): string; Virtual; Abstract;
+    function fnImprimir(var sCumulado: TStringList; iNivel: Integer = 0): string; Virtual; Abstract;
   end;
 
-  cNodoIndice = class(cNodo)
+  TNodoIndice = class(TNodo)
   private
     { Private declarations }
   public
-    nNodoHijos: TList<cNodo>;
+    nNodoHijos: TList<TNodo>;
     constructor fnCreate();
     function fnGetValorPorLlave(iLlave: Integer): String; override;
     procedure fnEliminarValorPorLlave(iLlave: Integer); override;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
     function fnObtenerPrimeraLlave(): Integer; override;
-    procedure fnUnir(nNodoHermano: cNodo); override;
-    function fnDividir(): cNodo; override;
+    function fnObtenerPrimerValor(): String; override;
+    function fnObtenerUltimoValor(): String; override;
+    function fnObtenerPrimerNodo(): TNodo; override;
+    procedure fnUnir(nNodoHermano: TNodo); override;
+    function fnDividir(): TNodo; override;
     function fnEstaDesbordado(): Boolean; override;
-    function fnObtenerHijoPorLlave(iLlave: Integer): cNodo;
+    function fnObtenerHijoPorLlave(iLlave: Integer): TNodo;
     procedure fnEliminarHijoPorLlave(iLlave: Integer);
-    procedure fnInsertarHijoEnLLave(iLlave: Integer; child: cNodo);
-    function fnObtenerNodoIzquierda(iLlave: Integer): cNodo;
-    function fnObtenerNodoDerecha(iLlave: Integer): cNodo;
+    procedure fnInsertarHijoEnLLave(iLlave: Integer; child: TNodo);
+    function fnObtenerNodoIzquierda(iLlave: Integer): TNodo;
+    function fnObtenerNodoDerecha(iLlave: Integer): TNodo;
+    function fnImprimir(var sCumulado: TStringList; iNivel: Integer = 0): string; override;
   end;
 
-  cNodoHoja = class(cNodo)
+  TNodoHoja = class(TNodo)
   private
     { Private declarations }
   public
     sListaValores: TList<String>;
-    nNodoHojaSiguiente: cNodoHoja;
+    nNodoHojaSiguiente: TNodoHoja;
     constructor fnCreate();
     function fnGetValorPorLlave(iLlave: Integer): String; override;
     procedure fnEliminarValorPorLlave(iLlave: Integer); override;
     procedure fnInsertarLlaveValor(iLlave: Integer; sValor: String); override;
     function fnObtenerPrimeraLlave(): Integer; override;
-    function fnDividir(): cNodo; override;
+    function fnObtenerPrimerValor(): String; override;
+    function fnObtenerUltimoValor(): String; override;
+    function fnObtenerPrimerNodo(): TNodo; override;
+    procedure fnUnir(nNodoHermano: TNodo); override;
+    function fnDividir(): TNodo; override;
     function fnEstaDesbordado(): Boolean; override;
+    function fnImprimir(var sCumulado: TStringList; iNivel: Integer = 0): string; override;
   end;
 
-  cArbolBPlus = class
+  TArbolBPlus = class
   private
     { Private declarations }
   public
@@ -65,116 +81,55 @@ type
     procedure fnEliminar(iLlave: Integer);
     function fnBuscar(iLlave: Integer): string;
     function fnImprimir(): string;
+    function fnPrimerValor(): string;
+    function fnUltimoValor(): string;
+    function fnRecorresHojas(): string;
   end;
 
 var
-  iOrden: Integer = 3;
-  nRaiz: cNodoIndice;
+  nRaiz: TNodo;
+  iOrden: Integer = 3; // Maximo nro de hijos que puede terner / Factor de ramificacion
 
 implementation
 
-{ cNodo }
+function fnSiString(bEstado: Boolean; sVerdad: String; sFalso: String): string;
+begin
+  if bEstado then
+    Result := sVerdad
+  else
+    Result := sFalso;
+end;
 
-function cNodo.fnGetCantidadLlaves(): Integer;
+{ TNode }
+
+function TNodo.fnGetCantidadLlaves(): Integer;
 begin
   Result := iListaLlaves.Count;
 end;
 
-{ cNodoIndice }
+// -------------------------------------------------------------------------------------
 
-constructor cNodoIndice.fnCreate;
+{ TNodoIndice }
+
+constructor TNodoIndice.fnCreate();
 begin
   iListaLlaves := TList<Integer>.Create();
-  nNodoHijos := TList<cNodo>.Create();
+  nNodoHijos := TList<TNodo>.Create();
 end;
 
-procedure cNodoIndice.fnUnir(nNodoHermano: cNodo);
-var
-  niNodo: cNodoIndice;
+function TNodoIndice.fnGetValorPorLlave(iLlave: Integer): String;
 begin
-  niNodo := cNodoIndice(nNodoHermano);
-  iListaLlaves.add(niNodo.fnObtenerPrimeraLlave());
-  iListaLlaves.AddRange(niNodo.iListaLlaves);
-  nNodoHijos.AddRange(niNodo.nNodoHijos);
+  Result := fnObtenerHijoPorLlave(iLlave).fnGetValorPorLlave(iLlave);
 end;
 
-function cNodoIndice.fnDividir: cNodo;
+procedure TNodoIndice.fnEliminarValorPorLlave(iLlave: Integer);
 var
-  iDesde: Integer;
-  iHasta: Integer;
-  nNodoHermano: cNodoIndice;
-  i: Integer;
-begin
-  iDesde := (fnGetCantidadLlaves() div 2) + 1;
-  iHasta := fnGetCantidadLlaves();
-
-  nNodoHermano := cNodoIndice.fnCreate();
-
-  for i := iDesde to iHasta - 1 do
-  begin
-    nNodoHermano.iListaLlaves.Add(iListaLlaves[i]);
-    nNodoHermano.nNodoHijos.Add(nNodoHijos[i]);
-  end;
-  nNodoHermano.nNodoHijos.Add(nNodoHijos[iHasta]);
-
-  iListaLlaves.DeleteRange(iDesde - 1, iHasta - iDesde + 1);
-  nNodoHijos.DeleteRange(iDesde, iHasta - iDesde + 1);
-
-  Result := nNodoHermano;
-end;
-
-procedure cNodoIndice.fnEliminarHijoPorLlave(iLlave: Integer);
-var
-  iIndiceBuscado: Integer;
-begin
-  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
-  begin
-    iListaLlaves.Delete(iIndiceBuscado);
-    //nNodoHijos.Delete(iIndiceBuscado + 1);
-    nNodoHijos[iIndiceBuscado + 1].Free();
-  end;
-end;
-
-function cNodoIndice.fnObtenerNodoIzquierda(iLlave: Integer): cNodo;
-var
-  iIndiceBuscado: Integer;
-begin
-  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
-    iIndiceBuscado := iIndiceBuscado + 1;
-
-  if iIndiceBuscado > 0 then
-  begin
-    Result := nNodoHijos[iIndiceBuscado - 1];
-    Exit;
-  end;
-
-  Result := nil;
-end;
-
-function cNodoIndice.fnObtenerNodoDerecha(iLlave: Integer): cNodo;
-var
-  iIndiceBuscado: Integer;
-begin
-  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
-    iIndiceBuscado := iIndiceBuscado + 1;
-
-  if iIndiceBuscado < fnGetCantidadLlaves() then
-  begin
-    Result := nNodoHijos[iIndiceBuscado + 1];
-    Exit;
-  end;
-
-  Result := nil;
-end;
-
-procedure cNodoIndice.fnEliminarValorPorLlave(iLlave: Integer);
-var
-  nHijo: cNodo;
-  nNodoHermanoIzquierda: cNodo;
-  nNodoHermanoDerecha: cNodo;
-  nIzquierda: cNodo;
-  nDerecha: cNodo;
-  nNodoHermano: cNodo;
+  nHijo: TNodo;
+  nNodoHermanoIzquierda: TNodo;
+  nNodoHermanoDerecha: TNodo;
+  nIzquierda: TNodo;
+  nDerecha: TNodo;
+  nNodoHermano: TNodo;
 begin
   nHijo := fnObtenerHijoPorLlave(iLlave);
   nHijo.fnEliminarValorPorLlave(iLlave);
@@ -208,17 +163,119 @@ begin
   end;
 end;
 
-function cNodoIndice.fnEstaDesbordado: Boolean;
+procedure TNodoIndice.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
+var
+  nHijo        : TNodo;
+  nNodoHermano : TNodo;
+  niNuevoRaiz  : TNodoIndice;
+begin
+  nHijo := fnObtenerHijoPorLlave(iLlave);
+  nHijo.fnInsertarLlaveValor(iLlave, sValor);
+
+  if nHijo.fnEstaDesbordado() then
+  begin
+    nNodoHermano := nHijo.fnDividir();
+    fnInsertarHijoEnLLave(nNodoHermano.fnObtenerPrimeraLlave(), nNodoHermano);
+  end;
+
+  if nRaiz.fnEstaDesbordado() then
+  begin
+    nNodoHermano := fnDividir();
+    niNuevoRaiz := TNodoIndice.fnCreate();
+    niNuevoRaiz.iListaLlaves.add(nNodoHermano.fnObtenerPrimeraLlave());
+    niNuevoRaiz.nNodoHijos.add(self);
+    niNuevoRaiz.nNodoHijos.add(nNodoHermano);
+    nRaiz := niNuevoRaiz;
+  end;
+end;
+
+function TNodoIndice.fnObtenerPrimeraLlave(): Integer;
+begin
+  Result := nNodoHijos[0].fnObtenerPrimeraLlave();
+end;
+
+
+function TNodoIndice.fnObtenerPrimerNodo(): TNodo;
+begin
+  Result := nNodoHijos[0].fnObtenerPrimerNodo();
+end;
+
+function TNodoIndice.fnObtenerPrimerValor(): String;
+begin
+  Result := nNodoHijos[0].fnObtenerPrimerValor();
+end;
+
+function TNodoIndice.fnObtenerUltimoValor(): String;
+begin
+  Result := nNodoHijos[nNodoHijos.Count - 1].fnObtenerUltimoValor();
+end;
+
+procedure TNodoIndice.fnUnir(nNodoHermano: TNodo);
+var
+  niNodo: TNodoIndice;
+begin
+  niNodo := TNodoIndice(nNodoHermano);
+  iListaLlaves.add(niNodo.fnObtenerPrimeraLlave());
+  iListaLlaves.AddRange(niNodo.iListaLlaves);
+  nNodoHijos.AddRange(niNodo.nNodoHijos);
+end;
+
+function TNodoIndice.fnDividir(): TNodo;
+var
+  iDesde: Integer;
+  iHasta: Integer;
+  nNodoHermano: TNodoIndice;
+  i: Integer;
+begin
+  iDesde := (fnGetCantidadLlaves() div 2) + 1;
+  iHasta := fnGetCantidadLlaves();
+
+  nNodoHermano := TNodoIndice.fnCreate();
+
+  for i := iDesde to iHasta - 1 do
+  begin
+    nNodoHermano.iListaLlaves.Add(iListaLlaves[i]);
+    nNodoHermano.nNodoHijos.Add(nNodoHijos[i]);
+  end;
+  nNodoHermano.nNodoHijos.Add(nNodoHijos[iHasta]);
+
+  iListaLlaves.DeleteRange(iDesde - 1, iHasta - iDesde + 1);
+  nNodoHijos.DeleteRange(iDesde, iHasta - iDesde + 1);
+
+  Result := nNodoHermano;
+end;
+
+function TNodoIndice.fnEstaDesbordado(): Boolean;
 begin
   Result := nNodoHijos.Count > iOrden;
 end;
 
-function cNodoIndice.fnGetValorPorLlave(iLlave: Integer): String;
+function TNodoIndice.fnObtenerHijoPorLlave(iLlave: Integer): TNodo;
+var
+  bEncontrado: Boolean;
+  iIndiceBuscado: Integer;
 begin
-  Result := fnObtenerHijoPorLlave(iLlave).fnGetValorPorLlave(iLlave);
+  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
+
+  if bEncontrado then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+  Result := nNodoHijos[iIndiceBuscado];
 end;
 
-procedure cNodoIndice.fnInsertarHijoEnLLave(iLlave: Integer; child: cNodo);
+procedure TNodoIndice.fnEliminarHijoPorLlave(iLlave: Integer);
+var
+  iIndiceBuscado: Integer;
+begin
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+  begin
+    iListaLlaves.Delete(iIndiceBuscado);
+    //nNodoHijos.Delete(iIndiceBuscado + 1);
+    nNodoHijos[iIndiceBuscado + 1].Free();
+  end;
+end;
+
+procedure TNodoIndice.fnInsertarHijoEnLLave(iLlave: Integer; child: TNodo);
 var
   iIndiceBuscado: Integer;
   bEncontrado : Boolean;
@@ -239,66 +296,164 @@ begin
   end;
 end;
 
-procedure cNodoIndice.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
+function TNodoIndice.fnObtenerNodoIzquierda(iLlave: Integer): TNodo;
 var
-  nHijo        : cNodo;
-  nNodoHermano : cNodo;
-  niNuevoRaiz  : cNodoIndice;
-begin
-  nHijo := fnObtenerHijoPorLlave(iLlave);
-  nHijo.fnInsertarLlaveValor(iLlave, sValor);
-
-  if nHijo.fnEstaDesbordado() then
-  begin
-    nNodoHermano := nHijo.fnDividir();
-    fnInsertarHijoEnLLave(nNodoHermano.fnObtenerPrimeraLlave(), nNodoHermano);
-  end;
-
-  if nRaiz.fnEstaDesbordado() then
-  begin
-    nNodoHermano := fnDividir();
-    niNuevoRaiz := cNodoIndice.fnCreate();
-    niNuevoRaiz.iListaLlaves.add(nNodoHermano.fnObtenerPrimeraLlave());
-    niNuevoRaiz.nNodoHijos.add(self);
-    niNuevoRaiz.nNodoHijos.add(nNodoHermano);
-    nRaiz := niNuevoRaiz;
-  end;
-end;
-
-function cNodoIndice.fnObtenerHijoPorLlave(iLlave: Integer): cNodo;
-var
-  bEncontrado: Boolean;
   iIndiceBuscado: Integer;
 begin
-  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
-
-  if bEncontrado then
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
     iIndiceBuscado := iIndiceBuscado + 1;
 
-  Result := nNodoHijos[iIndiceBuscado];
+  if iIndiceBuscado > 0 then
+  begin
+    Result := nNodoHijos[iIndiceBuscado - 1];
+    Exit;
+  end;
+
+  Result := nil;
 end;
 
-function cNodoIndice.fnObtenerPrimeraLlave: Integer;
+function TNodoIndice.fnObtenerNodoDerecha(iLlave: Integer): TNodo;
+var
+  iIndiceBuscado: Integer;
 begin
-  Result := nNodoHijos[0].fnObtenerPrimeraLlave();
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+    iIndiceBuscado := iIndiceBuscado + 1;
+
+  if iIndiceBuscado < fnGetCantidadLlaves() then
+  begin
+    Result := nNodoHijos[iIndiceBuscado + 1];
+    Exit;
+  end;
+
+  Result := nil;
 end;
 
-{ cNodoHoja }
+function TNodoIndice.fnImprimir(var sCumulado: TStringList; iNivel: Integer): string;
+var
+  i: Integer;
+  sLinea1: string;
+begin
+  if iListaLlaves.Count > 0 then
+  begin
+    for i := 0 to iListaLlaves.Count - 1 do
+      sLinea1 := sLinea1 + fnSiString(i = 0, '', ', ') + IntToStr(iListaLlaves[i]);
+    sLinea1 := '(' + sLinea1 + ')';
+  end;
 
-constructor cNodoHoja.fnCreate();
+  if iNivel > sCumulado.Count then
+    sCumulado.Add(sLinea1)
+  else
+    sCumulado[iNivel - 1] := sCumulado[iNivel - 1] + sLinea1;
+
+  for i := 0 to nNodoHijos.Count - 1 do
+  begin
+    nNodoHijos[i].fnImprimir(sCumulado, iNivel + 1);
+  end;
+
+  Result := '';
+end;
+
+
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// NODO HOJA
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+{ TNodoHoja }
+
+constructor TNodoHoja.fnCreate();
 begin
   iListaLlaves := TList<Integer>.Create();
   sListaValores := TList<String>.Create();
 end;
 
-function cNodoHoja.fnDividir(): cNodo;
+function TNodoHoja.fnGetValorPorLlave(iLlave: Integer): String;
+var
+  iIndiceBuscado: Integer;
+begin
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+    Result := sListaValores[iIndiceBuscado]
+  else
+    Result := '';
+end;
+
+procedure TNodoHoja.fnEliminarValorPorLlave(iLlave: Integer);
+var
+  iIndiceBuscado: Integer;
+begin
+  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
+  begin
+    iListaLlaves.Delete(iIndiceBuscado);
+    sListaValores.Delete(iIndiceBuscado);
+  end;
+end;
+
+procedure TNodoHoja.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
+var
+  iIndiceBuscado: Integer;
+  bEncontrado: Boolean;
+  nNodoHermano: TNodo;
+  niNuevoRaiz: TNodoIndice;
+begin
+  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
+
+  if bEncontrado then
+    sListaValores[iIndiceBuscado] := sValor
+  else
+  begin
+    iListaLlaves.Insert(iIndiceBuscado, iLlave);
+    sListaValores.Insert(iIndiceBuscado, sValor);
+  end;
+
+  if nRaiz.fnEstaDesbordado() then
+  begin
+    nNodoHermano := fnDividir();
+    niNuevoRaiz :=  TNodoIndice.fnCreate();
+    niNuevoRaiz.iListaLlaves.add(nNodoHermano.fnObtenerPrimeraLlave());
+
+    niNuevoRaiz.nNodoHijos.add(Self);
+    niNuevoRaiz.nNodoHijos.add(nNodoHermano);
+    nRaiz := niNuevoRaiz;
+  end;
+end;
+
+function TNodoHoja.fnObtenerPrimeraLlave(): Integer;
+begin
+  Result := iListaLlaves[0];
+end;
+
+function TNodoHoja.fnObtenerPrimerNodo(): TNodo;
+begin
+  Result := Self;
+end;
+
+function TNodoHoja.fnObtenerPrimerValor: String;
+begin
+  Result := sListaValores[0];
+end;
+
+function TNodoHoja.fnObtenerUltimoValor(): String;
+begin
+  Result := sListaValores[sListaValores.Count - 1];
+end;
+
+procedure TNodoHoja.fnUnir(nNodoHermano: TNodo);
+var
+  niNodo: TNodoHoja;
+begin
+  niNodo := TNodoHoja(nNodoHermano);
+  iListaLlaves.AddRange(niNodo.iListaLlaves);
+  sListaValores.AddRange(niNodo.sListaValores);
+
+  nNodoHojaSiguiente := niNodo.nNodoHojaSiguiente;
+end;
+
+function TNodoHoja.fnDividir(): TNodo;
 var
   iDesde: Integer;
   iHasta: Integer;
-  nNodoHermano: cNodoHoja;
+  nNodoHermano: TNodoHoja;
   i: Integer;
 begin
-  nNodoHermano := cNodoHoja.fnCreate();
+  nNodoHermano := TNodoHoja.fnCreate();
 
   iDesde := (fnGetCantidadLlaves() + 1) div 2;
   iHasta := fnGetCantidadLlaves();
@@ -318,92 +473,107 @@ begin
   Result := nNodoHermano;
 end;
 
-procedure cNodoHoja.fnEliminarValorPorLlave(iLlave: Integer);
-var
-  iIndiceBuscado: Integer;
-begin
-  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
-  begin
-    iListaLlaves.Delete(iIndiceBuscado);
-    sListaValores.Delete(iIndiceBuscado);
-  end;
-end;
-
-function cNodoHoja.fnEstaDesbordado: Boolean;
+function TNodoHoja.fnEstaDesbordado(): Boolean;
 begin
   Result := sListaValores.Count > iOrden - 1;
 end;
 
-function cNodoHoja.fnGetValorPorLlave(iLlave: Integer): String;
+function TNodoHoja.fnImprimir(var sCumulado: TStringList; iNivel: Integer): string;
 var
-  iIndiceBuscado: Integer;
+  i: Integer;
+  sLinea1: string;
 begin
-  if iListaLlaves.BinarySearch(iLlave, iIndiceBuscado) then
-    Result := sListaValores[iIndiceBuscado]
-  else
-    Result := '';
-end;
-
-procedure cNodoHoja.fnInsertarLlaveValor(iLlave: Integer; sValor: String);
-var
-  iIndiceBuscado: Integer;
-  bEncontrado: Boolean;
-  nNodoHermano: cNodo;
-  niNuevoRaiz: cNodoIndice;
-begin
-  bEncontrado := iListaLlaves.BinarySearch(iLlave, iIndiceBuscado);
-
-  if bEncontrado then
-    sListaValores[iIndiceBuscado] := sValor
-  else
+  if iListaLlaves.Count > 0 then
   begin
-    iListaLlaves.Insert(iIndiceBuscado, iLlave);
-    sListaValores.Insert(iIndiceBuscado, sValor);
+    for i := 0 to iListaLlaves.Count - 1 do
+      sLinea1 := sLinea1 + fnSiString(i = 0, '', ', ') + IntToStr(iListaLlaves[i]);
+    sLinea1 := '(' + sLinea1 + ')';
   end;
 
-  if nRaiz.fnEstaDesbordado() then
-  begin
-    nNodoHermano := fnDividir();
-    niNuevoRaiz :=  cNodoIndice.fnCreate();
-    niNuevoRaiz.iListaLlaves.add(nNodoHermano.fnObtenerPrimeraLlave());
+  if iNivel > sCumulado.Count then
+    sCumulado.Add(sLinea1)
+  else
+    sCumulado[iNivel - 1] := sCumulado[iNivel - 1] + sLinea1;
 
-    niNuevoRaiz.nNodoHijos.add(Self);
-    niNuevoRaiz.nNodoHijos.add(nNodoHermano);
-    nRaiz := niNuevoRaiz;
-  end;
+  Result := '';
 end;
 
-function cNodoHoja.fnObtenerPrimeraLlave: Integer;
-begin
-  Result := iListaLlaves[0];
-end;
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+// ARBOL
+// XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+{ TArbolBPlus }
 
-{ cArbolBPlus }
-
-constructor cArbolBPlus.fnCreate(iOrdenArbol: Integer);
+constructor TArbolBPlus.fnCreate(iOrdenArbol: Integer);
 begin
   iOrden := iOrdenArbol; // El orden debe ser mayor a 2
-  nRaiz := cNodoHoja.fnCreate();
+  nRaiz := TNodoHoja.fnCreate();
 end;
 
-procedure cArbolBPlus.fnEliminar(iLlave: Integer);
+procedure TArbolBPlus.fnEliminar(iLlave: Integer);
 begin
   nRaiz.fnEliminarValorPorLlave(iLlave);
 end;
 
-procedure cArbolBPlus.fnInsertar(iLlave: Integer; sValor: String);
+procedure TArbolBPlus.fnInsertar(iLlave: Integer; sValor: String);
 begin
   nRaiz.fnInsertarLlaveValor(iLlave, sValor);
 end;
 
-function cArbolBPlus.fnBuscar(iLlave: Integer): string;
+function TArbolBPlus.fnBuscar(iLlave: Integer): string;
 begin
   Result := nRaiz.fnGetValorPorLlave(iLlave);
 end;
 
-function cArbolBPlus.fnImprimir(): string;
+function TArbolBPlus.fnImprimir(): string;
+var
+  sResultado: TStringList;
 begin
+  sResultado := TStringList.Create();
+  //Result := nRaiz.fnImprimir(sResultado, 1);
+  nRaiz.fnImprimir(sResultado, 1);
+  Result := sResultado.Text;
+  sResultado.Free();
+end;
 
+function TArbolBPlus.fnPrimerValor(): string;
+begin
+  Result := nRaiz.fnObtenerPrimerValor();
+end;
+
+function TArbolBPlus.fnUltimoValor(): string;
+begin
+  Result := nRaiz.fnObtenerUltimoValor();
+end;
+
+function TArbolBPlus.fnRecorresHojas(): string;
+var
+  nNodoSiguiente: TNodoHoja;
+  sLinea: string;
+  function fniValores(nHojita: TNodoHoja): string;
+  var
+    i: Integer;
+    sResultado: string;
+  begin
+    if nHojita.sListaValores.Count > 0 then
+    begin
+      for i := 0 to nHojita.sListaValores.Count - 1 do
+        sResultado := sResultado + fnSiString(i = 0, '', ', ') + nHojita.sListaValores[i];
+
+      Result := '(' + sResultado + ')';
+    end;
+  end;
+begin
+  nNodoSiguiente := TNodoHoja(nRaiz.fnObtenerPrimerNodo());
+
+  Result := fniValores(nNodoSiguiente);
+
+  while Assigned(nNodoSiguiente.nNodoHojaSiguiente) do
+  begin
+    nNodoSiguiente := nNodoSiguiente.nNodoHojaSiguiente;
+
+    sLinea := '->' + fniValores(nNodoSiguiente);
+    Result := Result + sLinea;
+  end;
 end;
 
 end.
