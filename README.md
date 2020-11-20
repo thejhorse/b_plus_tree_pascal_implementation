@@ -7,6 +7,6 @@
 Project of implementation of a B+ Tree, for the postgraduate course of the National University San Agustin de Arequipa.
 Presented by:
 
-  - Angel Aguilar Armendariz
+  - Ángel Aguilar Armendáriz
   
 Visit www.luzdeluna.net.pe
